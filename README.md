@@ -21,12 +21,15 @@
 
 ### 🎬 `/douyin-transcribe` — 本地音频转写
 
-完全离线的音频转写管道。
+完全离线的音频转写管道，支持 CPU/GPU。
 
 **能力**：
 - 抖音链接 → 自动提取音频 → 本地转写
 - 本地音频文件直接转写（播客/录音等）
 - faster-whisper 本地识别（tiny/small/medium）
+- **GPU 加速**（RTX 3060: 18x 实时，99 分钟音频仅需 5.5 分钟）
+- **并行分块转录**（长音频切块多进程，CPU 模式 4-8x 提速）
+- **实时进度条**（可视化转写进度）
 - MD5 转录缓存（避免重复处理）
 - 多进程超时保护
 
@@ -84,7 +87,8 @@ douyin-transcribe/
 ├── SKILL.md                          # Skill 定义
 ├── .env.example                      # 环境配置模板
 └── scripts/
-    └── douyin_transcribe.py          # 本地音频转写管道
+    ├── douyin_transcribe.py          # 本地音频转写管道
+    └── parallel_transcribe.py        # 并行分块转写（GPU/CPU）
 ```
 
 ## 设计参考
