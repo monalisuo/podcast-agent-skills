@@ -1,11 +1,24 @@
 # Obsidian
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
+.obsidian/
 .trash/
 
 # Claude / Claudian
-.claudian/sessions/
-.claudian/tasks/
+.claudian/
+
+# Vault content (keep repo skill-only)
+📐 投资体系/
+🔬 公司研究/
+🌐 行业与宏观/
+📝 交易记录/
+🔄 复盘反思/
+📥 收件箱/
+📚 学习资源/
+光模块（Optical Module）AI算力互联核心.md
+知识库Agent搭建指南.md
+美股AI七姊妹.md
+股权与收益权的区别——以Microsoft投资OpenAI为例.md
+.mcp.json
+temp_cookies.txt
 
 # Skills temp
 .claude/skills/*/temp/node_modules/
