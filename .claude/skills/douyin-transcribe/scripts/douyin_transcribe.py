@@ -20,7 +20,7 @@
   - 超时保护：长音频 30 分钟超时，自动终止保留部分结果
 """
 
-import sys, os, re, json, time, subprocess, hashlib, multiprocessing
+import sys, os, re, json, time, subprocess, hashlib, multiprocessing, importlib
 import urllib.request, urllib.error
 from pathlib import Path
 
@@ -197,16 +197,38 @@ def save_to_cache(cache_key: str, transcript: str):
     cache_file.write_text(transcript, encoding="utf-8")
     log("已写入缓存", "💾")
 
+def _detect_device():
+    """Detect best available device and compute type for faster-whisper"""
+    try:
+        # Ensure NVIDIA CUDA DLLs are on PATH (must happen before ctranslate2 import)
+        spec = importlib.util.find_spec("nvidia")
+        if spec and spec.submodule_search_locations:
+            for loc in spec.submodule_search_locations:
+                bin_dir = os.path.join(loc, "cublas", "bin")
+                if os.path.isdir(bin_dir) and bin_dir not in os.environ.get("PATH", ""):
+                    os.environ["PATH"] = bin_dir + ";" + os.environ.get("PATH", "")
+
+        import ctranslate2
+        if ctranslate2.get_cuda_device_count() > 0:
+            return "cuda", "float16"
+    except Exception:
+        pass
+    return "cpu", "int8"
+
+
 # ── 转录工作进程（用于超时控制）──────────────────────
 def _transcribe_worker(audio_path: str, language: str, model_names: list, result_queue):
     """Worker function for multiprocessing transcription"""
     try:
         from faster_whisper import WhisperModel
 
+        device, compute_type = _detect_device()
+        log_prefix = f"[{'GPU' if device == 'cuda' else 'CPU'}]"
+
         model = None
         for model_name in model_names:
             try:
-                model = WhisperModel(model_name, device="cpu", compute_type="int8")
+                model = WhisperModel(model_name, device=device, compute_type=compute_type)
                 break
             except Exception:
                 continue
@@ -219,14 +241,27 @@ def _transcribe_worker(audio_path: str, language: str, model_names: list, result
             audio_path, language=language, beam_size=5, vad_filter=True,
             vad_parameters=dict(min_silence_duration_ms=500)
         )
-        lines = [seg.text.strip() for seg in segments if seg.text.strip()]
+        lines = []
+        seg_count = 0
+        for seg in segments:
+            text = seg.text.strip()
+            if text:
+                lines.append(text)
+                seg_count += 1
+                if seg_count % 50 == 0:
+                    # Progress indicator via stderr (not captured by result queue)
+                    import sys
+                    print(f"  {log_prefix} 已识别 {seg_count} 段...", file=sys.stderr, flush=True)
+
         result = "\n\n".join(lines)
 
         result_queue.put({
             "success": True,
             "transcript": result,
             "chars": len(result),
-            "language": info_obj.language
+            "language": info_obj.language,
+            "device": device,
+            "segments": seg_count
         })
     except Exception as e:
         result_queue.put({"success": False, "error": str(e)})
