@@ -1,0 +1,18 @@
+# Obsidian
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.trash/
+
+# Claude / Claudian
+.claudian/sessions/
+.claudian/tasks/
+
+# Skills temp
+.claude/skills/*/temp/node_modules/
+.claude/skills/*/temp/.gitignore
+.claude/skills/*/douyin-transcripts/
+.claude/skills/douyin-transcribe/temp/package-lock.json
+
+# Python
+__pycache__/
+*.pyc
