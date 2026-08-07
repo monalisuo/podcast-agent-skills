@@ -1,6 +1,0 @@
-.env
-node_modules/
-temp/*
-douyin-transcripts/*
-!temp/.gitkeep
-!douyin-transcripts/.gitkeep
