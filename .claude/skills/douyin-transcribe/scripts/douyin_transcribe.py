@@ -216,10 +216,11 @@ def _transcribe_worker(audio_path: str, language: str, model_names: list, result
             return
 
         segments, info_obj = model.transcribe(
-            audio_path, language=language, beam_size=5, vad_filter=True
+            audio_path, language=language, beam_size=5, vad_filter=True,
+            vad_parameters=dict(min_silence_duration_ms=500)
         )
-        lines = [seg.text for seg in segments]
-        result = " ".join(lines)
+        lines = [seg.text.strip() for seg in segments if seg.text.strip()]
+        result = "\n\n".join(lines)
 
         result_queue.put({
             "success": True,
