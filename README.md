@@ -4,6 +4,6 @@
 
 ## douyin-transcribe
 
-Douyin video transcription pipeline: Playwright → ffmpeg → faster-whisper
+Douyin video transcription pipeline: Playwright → ffmpeg → faster-whisper (GPU accelerated, VAD segmented)
 
 See [`.claude/skills/douyin-transcribe/`](.claude/skills/douyin-transcribe/) for details.

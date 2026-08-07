@@ -1,0 +1,163 @@
+---
+name: douyin-transcribe
+description: |
+  抖音视频智能助手。用户发抖音链接或视频文件，自动本地转录并智能处理（总结/逐字稿/归档/讨论）。
+  触发词：抖音、douyin.com、转文字、转录、视频转文本、douyin、transcribe
+---
+
+# 抖音视频智能助手 🎬🧠
+
+用户发一个抖音链接，全本地处理——下载音频 → 语音识别 → 总结/讨论/归档。
+
+**无需任何 API Key，完全离线可用。**
+
+---
+
+## 触发条件
+
+以下情况触发此 Skill：
+1. 用户消息包含 `douyin.com` 链接（短链或长链都算）
+2. 用户发来视频文件 + 提到"转文字/转录"等
+3. 用户发来类似 `7.94 复制打开抖音...` 的分享文本（提取其中链接）
+
+---
+
+## 第一步：判断用户意图
+
+| 模式 | 触发信号 | 用户说的话举例 |
+|------|---------|--------------|
+| **默认模式** | 只发了链接，没有额外指令 | `https://v.douyin.com/xxx` |
+| **逐字稿模式** | 明确要原文/逐字稿 | "转文字"、"逐字稿"、"转录出来"、"转录完整稿" |
+| **总结模式** | 要总结/要点 | "总结一下"、"讲了啥"、"帮我看看" |
+| **归档模式** | 要保存/收藏 | "存到知识库"、"收藏一下"、"记下来" |
+| **讨论模式** | 要讨论/评价 | "你怎么看"、"有道理吗"、"值不值得做" |
+
+**判断不了时，用默认模式。**
+
+---
+
+## 第二步：转录视频（本地管道）
+
+无论哪种模式，先跑转录脚本拿到逐字稿。
+
+### 运行转录脚本
+
+```bash
+cd ".claude/skills/douyin-transcribe"
+python scripts/douyin_transcribe.py "<抖音链接或分享文本>"
+```
+
+**timeout: 600 秒**（10 分钟视频 + CPU 推理约 1-5 分钟）。
+
+### 工作原理
+
+```
+抖音链接 → 🎭 Playwright无头浏览器提取播放地址 → ffmpeg下载音频（~4MB）
+         → faster-whisper本地识别（GPU优先，CUDA加速8x；CPU回退）
+         → ✂️ VAD自动分段，逐句分行 → 输出逐字稿到 douyin-transcripts/
+```
+
+### 读取逐字稿
+
+脚本完成后，读取 `douyin-transcripts/` 目录下最新的 `.md` 文件。
+
+---
+
+## 第三步：根据模式输出结果
+
+### 🔹 默认模式
+
+读完逐字稿，自己总结：
+
+> **📹 {视频标题}**
+> 👤 {博主名}
+>
+> **要点总结：**
+> 1. {要点1}
+> 2. {要点2}
+> ...
+>
+> **一句话概括：** {一句话说清楚}
+>
+> ---
+> 💡 逐字稿已保存。回复"看原文"查看完整逐字稿，"存起来"归档到知识库。
+
+### 🔹 逐字稿模式
+
+直接展示完整逐字稿。如果过长（>2000字），先给前 1000 字 + "已保存完整版到 `{路径}`"。
+
+### 🔹 总结模式
+
+详细总结 + 核心观点 + 关键要点 + 适用场景。
+
+### 🔹 归档模式
+
+1. 先做总结
+2. 按 CLAUDE.md 归档原则保存到 vault 对应目录
+
+### 🔹 讨论模式
+
+总结 + 个人分析/看法。
+
+---
+
+## 首次使用配置
+
+### 1. 安装 ffmpeg（必须）
+
+- **Windows**: `choco install ffmpeg` 或手动下载
+- **Mac**: `brew install ffmpeg`
+- **Linux**: `sudo apt install ffmpeg`
+
+### 2. 安装 faster-whisper（必须）
+
+```bash
+pip install faster-whisper
+```
+
+首次运行自动下载 Whisper 模型，**small 模型优先**（~500MB，已缓存无需重复下载）。模型缓存在 `~/.cache/huggingface/`。
+
+### 3. 安装 Playwright（必须，用于绕过抖音反爬）
+
+```bash
+npm install playwright
+npx playwright install chromium
+```
+
+### 4. GPU 加速（可选）
+
+如有 NVIDIA 显卡，安装 CUDA 运行时：
+
+```bash
+pip install nvidia-cublas-cu12
+```
+
+脚本自动检测 GPU，推理速度提升约 8 倍。
+
+### 5. 无需 API Key
+
+所有处理在本地完成，不依赖任何外部 API。
+
+---
+
+## 依赖
+
+| 依赖 | 必须？ | 费用 | 用途 |
+|------|--------|------|------|
+| Python 3 | ✅ | 免费 | 运行脚本 |
+| Node.js + Playwright | ✅ | 免费 | 绕过抖音反爬，提取视频 |
+| ffmpeg | ✅ | 免费 | 音频下载 |
+| faster-whisper | ✅ | 免费 | 本地语音识别（GPU加速可选） |
+| nvidia-cublas-cu12 | 可选 | 免费 | CUDA GPU 加速（~8x 速度提升） |
+
+---
+
+## 故障排查
+
+| 问题 | 解决 |
+|------|------|
+| Playwright 提取失败 | 抖音可能改版，更新 Playwright：`npx playwright install --force chromium` |
+| ffmpeg 下载失败 | 检查网络，或手动下载视频后传本地文件 |
+| 模型加载失败 | 删除 `~/.cache/huggingface/hub/models--Systran--faster-whisper-*` 重新下载 |
+| GPU 不可用（cublas64_12.dll not found） | `pip install nvidia-cublas-cu12`，脚本自动检测路径 |
+| 转录太慢（CPU） | 安装 `nvidia-cublas-cu12` 启用 GPU 加速，或改用 tiny 模型 |
